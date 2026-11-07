@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f5c8c">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<title>Wycena blach Transtal</title>
+<style>
+:root{--bg:#eef1f3;--card:#fff;--ink:#17232d;--mute:#5b6b78;--line:#d3dbe1;--acc:#0f5c8c;--accink:#fff;--hi:#e4f0f8;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10181e;--card:#1a252d;--ink:#e8eef2;--mute:#9aabb8;--line:#2e3d48;--acc:#4aa3d8;--accink:#06121b;--hi:#1d3342}}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:18px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:520px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:4px 0 14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px}
+label{display:block;font-size:16px;color:var(--mute);margin:12px 0 4px}
+.ph{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px}
+.ph b{font-size:19px}
+select,input[type=text]{display:block;width:100%;margin-top:4px;font:inherit;font-size:20px;padding:12px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);min-height:52px}
+select:focus,input:focus,button:focus-visible{outline:3px solid var(--acc);outline-offset:1px}
+.row{display:flex;gap:10px}.row>label{flex:1;min-width:0}
+button{font:inherit;font-weight:700;border:0;border-radius:12px;min-height:56px;width:100%;cursor:pointer}
+#go{background:var(--acc);color:var(--accink);font-size:21px}
+#add,#copy{background:var(--card);color:var(--acc);border:2px solid var(--acc);margin-bottom:14px}
+#copy{margin:10px 0 0}
+.rm{width:auto;min-height:44px;padding:0 14px;background:none;color:var(--mute);border:1.5px solid var(--line);font-size:16px;font-weight:600}
+.err{color:#b3261e;font-weight:600;margin:0 0 12px}
+@media (prefers-color-scheme:dark){.err{color:#ff8a80}}
+#out{display:none}
+.pos-h{background:var(--acc);color:var(--accink);padding:8px 12px;border-radius:8px;font-weight:700;margin:18px 0 8px}
+.pos-h:first-child{margin-top:0}
+.sec{font-weight:700;margin:12px 0 4px;padding-top:10px;border-top:1px solid var(--line)}
+.pos-h+.sec{border-top:0;padding-top:0;margin-top:4px}
+.r{display:flex;justify-content:space-between;gap:12px;padding:5px 0}
+.r span:first-child{color:var(--mute)}
+.r span:last-child{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.big{background:var(--hi);border-radius:10px;padding:10px 12px;margin-top:8px}
+.big .r span:first-child{color:var(--ink)}
+.big .r:first-child span:first-child{font-weight:700}
+.note{font-size:14px;color:var(--mute);margin:10px 0 0}
+</style>
+</head>
+<body>
+<main>
+<h1>Wycena blach Transtal</h1>
+<div id="list"></div>
+<button type="button" id="add">+ Dodaj powierzchnię</button>
+<p class="err" id="e" role="alert"></p>
+<button type="button" id="go">Policz</button>
+<div class="card" id="out" style="margin-top:14px">
+  <div id="res"></div>
+  <button type="button" id="copy">Kopiuj wynik</button>
+</div>
+</main>
+<script>
+var P={"T-7":{c:1.170,e:1.140,a:[25.92,26.72]},"T-14":{c:1.155,e:1.120,a:[26.26,27.07]},"T-18":{c:1.170,e:1.100,a:[25.92,26.72]},"T-20":{c:1.080,e:1.040,a:[27.57,28.42]},"T-35":{c:1.090,e:1.055,a:[27.86,28.72]}};
+var $=function(i){return document.getElementById(i)};
+function num(s){return parseFloat(String(s).replace(",",".").replace(/\s/g,""))}
+function r2(x){return Math.round(x*100)/100}
+function up(x){return Math.ceil(Math.round(x*1e6)/1e6)}
+function f(x,d){return x.toFixed(d==null?2:d).replace(".",",")}
+function nb(n){return f(n)+" zł netto / "+f(r2(n*1.23))+" zł brutto"}
+var TPL='<div class="ph"><b class="pt"></b><button type="button" class="rm">Usuń</button></div>'
++'<label>Profil<select class="m"><option>T-7</option><option>T-14</option><option>T-18</option><option>T-20</option><option>T-35</option></select></label>'
++'<label>Powłoka<select class="p"><option>Połysk</option><option>Ultramat</option></select></label>'
++'<label>Antykondensant (FILC)<select class="f"><option value="0">Bez antykondensantu</option><option value="1">Z antykondensantem (+ 6,00 zł netto)</option></select></label>'
++'<div class="row"><label>Długość (m)<input class="l" type="text" inputmode="decimal" placeholder="np. 12" autocomplete="off"></label>'
++'<label>Wysokość (mb)<input class="h" type="text" inputmode="decimal" placeholder="np. 4,20" autocomplete="off"></label></div>';
+function cards(){return document.querySelectorAll(".pos")}
+function renum(){var c=cards();c.forEach(function(d,i){d.querySelector(".pt").textContent="Pozycja "+(i+1);d.querySelector(".rm").style.display=c.length>1?"":"none"})}
+function add(){
+  var c=cards(),prev=c.length?c[c.length-1]:null;
+  var d=document.createElement("div");d.className="card pos";d.innerHTML=TPL;$("list").appendChild(d);
+  if(prev){["m","p","f"].forEach(function(k){d.querySelector("."+k).value=prev.querySelector("."+k).value})}
+  renum();
+  if(prev){d.querySelector(".l").focus()}
+}
+$("list").addEventListener("click",function(ev){
+  if(ev.target.classList.contains("rm")){var d=ev.target.closest(".pos");if(cards().length>1){d.remove();renum()}}
+});
+$("add").addEventListener("click",add);
+var txt="";
+function calc(){
+  var e=$("e"),h="",t="",totAll=0,sumZ=0,sumS=0,c=cards(),i;
+  for(i=0;i<c.length;i++){
+    var d=c[i],L=num(d.querySelector(".l").value),H=num(d.querySelector(".h").value);
+    if(!(L>0)||!(H>0)){e.textContent="Pozycja "+(i+1)+": wpisz długość i wysokość (liczby większe od 0).";$("out").style.display="none";d.scrollIntoView({behavior:"smooth",block:"center"});return}
+  }
+  e.textContent="";
+  for(i=0;i<c.length;i++){
+    var d=c[i],L=num(d.querySelector(".l").value),H=num(d.querySelector(".h").value);
+    var m=d.querySelector(".m").value,pw=d.querySelector(".p").value,fl=d.querySelector(".f").value==="1",q=P[m];
+    var base=q.a[pw==="Ultramat"?1:0]+(fl?6:0);
+    var unit=up(base*1.12*100)/100;
+    var n=up(L/q.e),a1=H*q.c,tot=n*a1;
+    var wm=Math.round((n*q.e-L)*1000)/1000,wcm=Math.round(wm*1000)/10;
+    var matZ=r2(base*tot),matS=r2(unit*tot);
+    totAll+=tot;sumZ+=matZ;sumS+=matS;
+    var S=[
+     ["ZAMÓWIENIE",[["Towar","Blacha trapezowa "+m+" "+pw+(fl?" + FILC":"")],["Ilość × długość",n+" szt. × "+f(H)+" mb"]]],
+     ["ARKUSZ",[["Powierzchnia 1 arkusza",f(a1,3)+" m²"],["Cena 1 arkusza (z marżą)",nb(a1*unit)]]],
+     ["POWIERZCHNIA I CENA",[["Łączna powierzchnia",f(tot,3)+" m²"],["Cena jedn. z m² (z marżą)",nb(unit)]]],
+     ["ODPAD",[["Odpad",f(wcm,1)+" cm × "+f(H)+" mb"],["Koszt odpadu (z marżą)",nb(wm*H*unit)]]]
+    ];
+    var ttl="POZYCJA "+(i+1);
+    h+='<div class="pos-h">'+ttl+'</div>';t+=(i?"\n":"")+ttl+"\n";
+    S.forEach(function(s){h+='<div class="sec">'+s[0]+'</div>';t+=s[0]+"\n";
+      s[1].forEach(function(r){h+='<div class="r"><span>'+r[0]+'</span><span>'+r[1]+'</span></div>';t+=r[0]+": "+r[1]+"\n"})});
+  }
+  totAll=Math.round(totAll*1e6)/1e6;
+  var fee=totAll<30?50:0,feeTxt=fee?nb(50):"Brak";
+  h+='<div class="pos-h">PODSUMOWANIE ZAMÓWIENIA</div>';t+="\nPODSUMOWANIE ZAMÓWIENIA\n";
+  h+='<div class="r"><span>Łączna powierzchnia</span><span>'+f(totAll,3)+' m²</span></div>';t+="Łączna powierzchnia: "+f(totAll,3)+" m²\n";
+  h+='<div class="sec">WARTOŚĆ ZAMÓWIENIA</div>';t+="WARTOŚĆ ZAMÓWIENIA\n";
+  [["BEZ MARŻY (ZAKUP)",sumZ],["Z MARŻĄ 12% (SPRZEDAŻ)",sumS]].forEach(function(x){
+    var mat=r2(x[1]),sum=r2(mat+fee);
+    h+='<div class="big"><div class="r"><span>'+x[0]+'</span><span></span></div>'
+     +'<div class="r"><span>Materiał</span><span>'+nb(mat)+'</span></div>'
+     +'<div class="r"><span>Opłata produkcyjna</span><span>'+feeTxt+'</span></div>'
+     +'<div class="r"><span>Razem netto</span><span>'+f(sum)+' zł</span></div>'
+     +'<div class="r"><span>Razem brutto</span><span>'+f(r2(sum*1.23))+' zł</span></div></div>';
+    t+=x[0]+"\n  Materiał: "+nb(mat)+"\n  Opłata produkcyjna: "+feeTxt+"\n  Razem: "+f(sum)+" zł netto / "+f(r2(sum*1.23))+" zł brutto\n"});
+  h+='<p class="note">Opłata produkcyjna 50,00 zł netto jest doliczana raz, gdy łączna powierzchnia zamówienia jest mniejsza niż 30 m².</p>';
+  $("res").innerHTML=h;txt=t.trim();
+  $("out").style.display="block";
+  $("out").scrollIntoView({behavior:"smooth",block:"start"});
+}
+$("go").addEventListener("click",calc);
+$("copy").addEventListener("click",function(){
+  var b=$("copy");
+  function ok(){b.textContent="Skopiowano";setTimeout(function(){b.textContent="Kopiuj wynik"},1500)}
+  function fb(){var ta=document.createElement("textarea");ta.value=txt;document.body.appendChild(ta);ta.select();try{document.execCommand("copy");ok()}catch(x){}document.body.removeChild(ta)}
+  try{navigator.clipboard.writeText(txt).then(ok,fb)}catch(x){fb()}
+});
+add();
+if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}
+</script>
+</body>
+</html>
